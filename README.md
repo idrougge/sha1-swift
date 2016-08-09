@@ -33,6 +33,7 @@ An SHA-1 hash implementation in Swift
 let my_sha1_calculator=SHA1()
 my_sha1_calculator.hashFromFile(myfile)
 ```
+* Since Swift lacks bignums, the hash digest is returned as either a hexadecimal string or as an array of five ints.
 
 ##Resources##
 * Pseudocode on Wikipedia: https://en.wikipedia.org/wiki/SHA-1#Examples_and_pseudocode

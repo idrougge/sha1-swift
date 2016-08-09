@@ -83,9 +83,10 @@ public struct SHA1 {
         data.getBytes(&w, length: 64)
         var range=NSMakeRange(0, 64)
         while data.length > NSMaxRange(range) {
-            print("Hämtar \(range.length) byte på position \(range.location)")
+            print("Reading \(range.length) bytes @ position \(range.location)")
             data.getBytes(&w, range: range)
             context.processChunk(&w)
+            range=NSMakeRange(NSMaxRange(range), 64)
         }
         w=[uint32](count: CHUNKSIZE, repeatedValue: 0x00000000)
         range=NSMakeRange(range.location, data.length-range.location)

@@ -145,32 +145,32 @@ public struct SHA1 {
      * PUBLIC METHODS                                 *
      **************************************************/
     
-    // Return a hexadecimal hash from a file
+    /// Return a hexadecimal hash from a file
     static public func hexStringFromFile(filename:String) -> String? {
         return hexString(SHA1.dataFromFile(filename))
     }
     
-    // Return the hash of a file as an array of Ints
+    /// Return the hash of a file as an array of Ints
     public static func hashFromFile(filename:String) -> [Int]? {
         return dataFromFile(filename)?.h.map{Int($0)}
     }
     
-    // Return a hexadecimal hash from NSData
+    /// Return a hexadecimal hash from NSData
     public static func hexStringFromData(data:NSData) -> String? {
         return hexString(SHA1.processData(data))
     }
     
-    // Return the hash of NSData as an array of Ints
+    /// Return the hash of NSData as an array of Ints
     public static func hashFromData(data:NSData) -> [Int]? {
         return processData(data)?.h.map{Int($0)}
     }
     
-    // Return a hexadecimal hash from a string
+    /// Return a hexadecimal hash from a string
     public static func hexStringFromString(str:String) -> String? {
         return hexString(SHA1.processData(str.dataUsingEncoding(NSUTF8StringEncoding)!))
     }
     
-    // Return the hash of a string as an array of Ints
+    /// Return the hash of a string as an array of Ints
     public static func hashFromString(str:String) -> [Int]? {
         return processData(str.dataUsingEncoding(NSUTF8StringEncoding)!)?.h.map{Int($0)}
     }

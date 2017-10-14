@@ -1,10 +1,11 @@
 // SHA-1 implementation in Swift
 // $AUTHOR: Iggy Drougge
-// $VER: 1.1
+// $VER: 2.0
 
 import Foundation
 
-infix operator <<< {associativity none precedence 160}  // Left rotation (or cyclic shift) operator
+/// Left rotation (or cyclic shift) operator
+infix operator <<< : BitwiseShiftPrecedence
 private func <<< (lhs:uint32, rhs:uint32) -> uint32 {
     return lhs << rhs | lhs >> (32-rhs)
 }
@@ -13,11 +14,11 @@ public struct SHA1 {
     // One chunk consists of 80 big-endian longwords (32 bits, unsigned)
     private static let CHUNKSIZE=80
     // SHA-1 magic words
-    private static var h0:uint32 = 0x67452301
-    private static var h1:uint32 = 0xEFCDAB89
-    private static var h2:uint32 = 0x98BADCFE
-    private static var h3:uint32 = 0x10325476
-    private static var h4:uint32 = 0xC3D2E1F0
+    private static let h0:uint32 = 0x67452301
+    private static let h1:uint32 = 0xEFCDAB89
+    private static let h2:uint32 = 0x98BADCFE
+    private static let h3:uint32 = 0x10325476
+    private static let h4:uint32 = 0xC3D2E1F0
     
     /**************************************************
      * SHA1.context                                   *
@@ -29,7 +30,7 @@ public struct SHA1 {
         var h:[uint32]=[SHA1.h0,SHA1.h1,SHA1.h2,SHA1.h3,SHA1.h4]
         
         // Process one chunk of 80 big-endian longwords
-        private mutating func processChunk(inout chunk:[uint32]) {
+        mutating func process(chunk:inout [uint32]) {
             chunk=chunk.map{$0.bigEndian}   // The numbers must be big-endian
             for i in 16...79 {              // Extend the chunk to 80 longwords
                 chunk[i] = (chunk[i-3] ^ chunk[i-8] ^ chunk[i-14] ^ chunk[i-16]) <<< 1
@@ -82,38 +83,55 @@ public struct SHA1 {
      * 16 longwords (64 bytes, 512 bits),             *
      * padding the chunk as necessary.                *
      **************************************************/
-    private static func processData(data:NSData) -> SHA1.context? {
+    private static func process(data: inout Data) -> SHA1.context? {
         var context=SHA1.context()
-        var w=[uint32](count: CHUNKSIZE, repeatedValue: 0x00000000) // Initialise empty chunk
-        let ml=data.length << 3                                     // Message length in bits
-        data.getBytes(&w, length: 64)                               // Retrieve a chunk
-        var range=NSMakeRange(0, 64)                                // A chunk is 64 bytes
+        var w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)     // Initialise empty chunk
+        let ml=data.count << 3                                     // Message length in bits
+        //data.subdata(in: 0..<64)
+        /*
+         w.withUnsafeMutableBufferPointer{ dest in
+         _=data.copyBytes(to: dest, from: Range<Data.Index>(0...63))
+         }
+         */
+        //data.getBytes(&w, length: 64)                               // Retrieve a chunk
+        var range = Range(0...63)
+        //var range=NSMakeRange(0, 64)                                // A chunk is 64 bytes
         
         // If the remainder of the message is more than 64 bytes
-        while data.length > NSMaxRange(range) {
-            //print("Reading \(range.length) bytes @ position \(range.location)")
-            data.getBytes(&w, range: range)                         // Retrieve one chunk
-            context.processChunk(&w)                                // Process the chunk
-            range=NSMakeRange(NSMaxRange(range), 64)                // Make range for next chunk
+        while data.count > range.upperBound {
+            //while data.count > NSMaxRange(range) {
+            print("Reading \(range.count) bytes @ position \(range.lowerBound)")
+            w.withUnsafeMutableBufferPointer{ dest in
+                _=data.copyBytes(to: dest, from: range)
+            }
+            //data.getBytes(&w, range: range)                         // Retrieve one chunk
+            context.process(chunk: &w)                                // Process the chunk
+            range = Range(range.upperBound...range.upperBound+64)
+            //range=NSMakeRange(NSMaxRange(range), 64)                // Make range for next chunk
         }
         
         // Handle remainder of message that is <64 bytes in length
-        w=[uint32](count: CHUNKSIZE, repeatedValue: 0x00000000)     // Initialise empty chunk
-        range=NSMakeRange(range.location, data.length-range.location) // Range for remainder of message
-        data.getBytes(&w, range: range)                             // Retrieve remainder
-        let bytetochange=range.length % 4                           // The bit to the right of the
+        w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)         // Initialise empty chunk
+        range = Range(range.lowerBound..<data.count)
+        //range=NSMakeRange(range.location, data.count-range.location) // Range for remainder of message
+        w.withUnsafeMutableBufferPointer{ dest in
+            _=data.copyBytes(to: dest, from: range)
+        }
+        //data.getBytes(&w, range: range)                             // Retrieve remainder
+        let bytetochange=range.count % 4                           // The bit to the right of the
         let shift = uint32(bytetochange * 8)                        // last bit of the actual message
-        w[range.length/4] |= 0x80 << shift                          // should be set to 1.
-        
+        w[range.count/4] |= 0x80 << shift                          // should be set to 1.
+        print("\(range.count)/4:",range.count/4)
+        print("0x80 << \(shift)",0x80 << shift)
         // If the remainder overflows, a new, empty chunk must be added
-        if range.length+1 > 56 {
-            context.processChunk(&w)
-            w=[uint32](count: CHUNKSIZE, repeatedValue: 0x00000000)
+        if range.count+1 > 56 {
+            context.process(chunk: &w)
+            w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)
         }
         
         // The last 64 bits of the last chunk must contain the message length in big-endian format
         w[15] = uint32(ml).bigEndian
-        context.processChunk(&w)                                    // Process the last chunk
+        context.process(chunk: &w)                                    // Process the last chunk
         
         // The context (or nil) is returned, containing the hash in the h[] array
         return context
@@ -123,12 +141,10 @@ public struct SHA1 {
      * hexString()                                    *
      * Render the hash as a hexadecimal string        *
      **************************************************/
-    private static func hexString(context:SHA1.context?) -> String? {
+    private static func hexString(_ context:SHA1.context?) -> String? {
         guard let c=context else {return nil}
-        var hh:String=""
-        c.h.map{hh+=String(format:"%8X\($0.distanceTo(c.h.last!)==0 ? "":" ")",$0)}
-        return hh
-        //return String(format: "%8X %8X %8X %8X %8X", c.h[0], c.h[1], c.h[2], c.h[3], c.h[4])
+        return String(format: "%8X %8X %8X %8X %8X", c.h[0], c.h[1], c.h[2], c.h[3], c.h[4])
+        return c.h.map(String.init).joined(separator: " ")
     }
     
     /**************************************************
@@ -136,9 +152,9 @@ public struct SHA1 {
      * Fetch the contents of a file as NSData         *
      * for processing by processData()                *
      **************************************************/
-    private static func dataFromFile(filename:String) -> SHA1.context? {
-        guard let file=NSData(contentsOfFile:filename) else {return nil}
-        return processData(file)
+    private static func dataFromFile(named filename:String) -> SHA1.context? {
+        guard var file = try? Data(contentsOf: URL(fileURLWithPath: filename)) else {return nil}
+        return process(data: &file)
     }
     
     /**************************************************
@@ -147,32 +163,36 @@ public struct SHA1 {
     
     /// Return a hexadecimal hash from a file
     static public func hexStringFromFile(filename:String) -> String? {
-        return hexString(SHA1.dataFromFile(filename))
+        return hexString(SHA1.dataFromFile(named: filename))
     }
     
     /// Return the hash of a file as an array of Ints
     public static func hashFromFile(filename:String) -> [Int]? {
-        return dataFromFile(filename)?.h.map{Int($0)}
+        return dataFromFile(named: filename)?.h.map{Int($0)}
     }
     
     /// Return a hexadecimal hash from NSData
-    public static func hexStringFromData(data:NSData) -> String? {
-        return hexString(SHA1.processData(data))
+    public static func hexStringFromData(data: inout Data) -> String? {
+        return hexString(SHA1.process(data: &data))
     }
     
     /// Return the hash of NSData as an array of Ints
-    public static func hashFromData(data:NSData) -> [Int]? {
-        return processData(data)?.h.map{Int($0)}
+    public static func hashFromData(data: inout Data) -> [Int]? {
+        return process(data: &data)?.h.map{Int($0)}
     }
     
     /// Return a hexadecimal hash from a string
     public static func hexStringFromString(str:String) -> String? {
-        return hexString(SHA1.processData(str.dataUsingEncoding(NSUTF8StringEncoding)!))
+        guard var data = str.data(using: .utf8) else { return nil }
+        return hexString(SHA1.process(data: &data))
     }
     
     /// Return the hash of a string as an array of Ints
     public static func hashFromString(str:String) -> [Int]? {
-        return processData(str.dataUsingEncoding(NSUTF8StringEncoding)!)?.h.map{Int($0)}
+        guard var data = str.data(using: .utf8) else { return nil }
+        return process(data: &data)?.h.map{Int($0)}
     }
     
 }
+
+

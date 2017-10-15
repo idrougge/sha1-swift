@@ -1,6 +1,6 @@
-// SHA-1 implementation in Swift
+// SHA-1 implementation in Swift 4
 // $AUTHOR: Iggy Drougge
-// $VER: 2.0
+// $VER: 2.1
 
 import Foundation
 
@@ -30,9 +30,12 @@ public struct SHA1 {
         var h:[uint32]=[SHA1.h0,SHA1.h1,SHA1.h2,SHA1.h3,SHA1.h4]
         
         // Process one chunk of 80 big-endian longwords
-        mutating func process(chunk:inout [uint32]) {
-            chunk=chunk.map{$0.bigEndian}   // The numbers must be big-endian
-            for i in 16...79 {              // Extend the chunk to 80 longwords
+        mutating func process(chunk:inout ContiguousArray<uint32>) {
+            for i in 0..<16 {
+                chunk[i] = chunk[i].bigEndian // The numbers must be big-endian
+            }
+            //chunk=chunk.map{$0.bigEndian}   // The numbers must be big-endian
+            for i in 16...79 {                // Extend the chunk to 80 longwords
                 chunk[i] = (chunk[i-3] ^ chunk[i-8] ^ chunk[i-14] ^ chunk[i-16]) <<< 1
             }
             
@@ -85,48 +88,33 @@ public struct SHA1 {
      **************************************************/
     private static func process(data: inout Data) -> SHA1.context? {
         var context=SHA1.context()
-        var w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)     // Initialise empty chunk
-        let ml=data.count << 3                                     // Message length in bits
-        //data.subdata(in: 0..<64)
-        /*
-         w.withUnsafeMutableBufferPointer{ dest in
-         _=data.copyBytes(to: dest, from: Range<Data.Index>(0...63))
-         }
-         */
-        //data.getBytes(&w, length: 64)                               // Retrieve a chunk
-        var range = Range(0...63)
-        //var range=NSMakeRange(0, 64)                                // A chunk is 64 bytes
+        var w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
+        let ml=data.count << 3                                        // Message length in bits
+        var range = Range(0..<64)                                     // A chunk is 64 bytes
         
-        // If the remainder of the message is more than 64 bytes
-        while data.count > range.upperBound {
-            //while data.count > NSMaxRange(range) {
-            print("Reading \(range.count) bytes @ position \(range.lowerBound)")
+        // If the remainder of the message is more than or equal 64 bytes
+        while data.count >= range.upperBound {
+            //print("Reading \(range.count) bytes @ position \(range.lowerBound)")
             w.withUnsafeMutableBufferPointer{ dest in
-                _=data.copyBytes(to: dest, from: range)
+                _=data.copyBytes(to: dest, from: range)               // Retrieve one chunk
             }
-            //data.getBytes(&w, range: range)                         // Retrieve one chunk
             context.process(chunk: &w)                                // Process the chunk
-            range = Range(range.upperBound...range.upperBound+64)
-            //range=NSMakeRange(NSMaxRange(range), 64)                // Make range for next chunk
+            range = Range(range.upperBound..<range.upperBound+64)     // Make range for next chunk
         }
         
         // Handle remainder of message that is <64 bytes in length
-        w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)         // Initialise empty chunk
-        range = Range(range.lowerBound..<data.count)
-        //range=NSMakeRange(range.location, data.count-range.location) // Range for remainder of message
+        w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
+        range = Range(range.lowerBound..<data.count)                  // Range for remainder of message
         w.withUnsafeMutableBufferPointer{ dest in
-            _=data.copyBytes(to: dest, from: range)
+            _=data.copyBytes(to: dest, from: range)                   // Retrieve remainder
         }
-        //data.getBytes(&w, range: range)                             // Retrieve remainder
-        let bytetochange=range.count % 4                           // The bit to the right of the
-        let shift = uint32(bytetochange * 8)                        // last bit of the actual message
-        w[range.count/4] |= 0x80 << shift                          // should be set to 1.
-        print("\(range.count)/4:",range.count/4)
-        print("0x80 << \(shift)",0x80 << shift)
+        let bytetochange=range.count % 4                              // The bit to the right of the
+        let shift = uint32(bytetochange * 8)                          // last bit of the actual message
+        w[range.count/4] |= 0x80 << shift                             // should be set to 1.
         // If the remainder overflows, a new, empty chunk must be added
         if range.count+1 > 56 {
             context.process(chunk: &w)
-            w=[uint32](repeating: 0x00000000, count: CHUNKSIZE)
+            w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE)
         }
         
         // The last 64 bits of the last chunk must contain the message length in big-endian format
@@ -192,7 +180,6 @@ public struct SHA1 {
         guard var data = str.data(using: .utf8) else { return nil }
         return process(data: &data)?.h.map{Int($0)}
     }
-    
+    // FIXME: Function signatures
 }
-
 

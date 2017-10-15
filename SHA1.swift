@@ -1,6 +1,6 @@
 // SHA-1 implementation in Swift 4
 // $AUTHOR: Iggy Drougge
-// $VER: 2.1
+// $VER: 2.2
 
 import Foundation
 
@@ -132,7 +132,6 @@ public struct SHA1 {
     private static func hexString(_ context:SHA1.context?) -> String? {
         guard let c=context else {return nil}
         return String(format: "%8X %8X %8X %8X %8X", c.h[0], c.h[1], c.h[2], c.h[3], c.h[4])
-        return c.h.map(String.init).joined(separator: " ")
     }
     
     /**************************************************
@@ -150,36 +149,35 @@ public struct SHA1 {
      **************************************************/
     
     /// Return a hexadecimal hash from a file
-    static public func hexStringFromFile(filename:String) -> String? {
+    static public func hexString(fromFile filename:String) -> String? {
         return hexString(SHA1.dataFromFile(named: filename))
     }
     
     /// Return the hash of a file as an array of Ints
-    public static func hashFromFile(filename:String) -> [Int]? {
+    public static func hash(fromFile filename:String) -> [Int]? {
         return dataFromFile(named: filename)?.h.map{Int($0)}
     }
     
     /// Return a hexadecimal hash from NSData
-    public static func hexStringFromData(data: inout Data) -> String? {
+    public static func hexString(from data: inout Data) -> String? {
         return hexString(SHA1.process(data: &data))
     }
     
     /// Return the hash of NSData as an array of Ints
-    public static func hashFromData(data: inout Data) -> [Int]? {
+    public static func hash(from data: inout Data) -> [Int]? {
         return process(data: &data)?.h.map{Int($0)}
     }
     
     /// Return a hexadecimal hash from a string
-    public static func hexStringFromString(str:String) -> String? {
+    public static func hexString(from str:String) -> String? {
         guard var data = str.data(using: .utf8) else { return nil }
         return hexString(SHA1.process(data: &data))
     }
     
     /// Return the hash of a string as an array of Ints
-    public static func hashFromString(str:String) -> [Int]? {
+    public static func hash(from str:String) -> [Int]? {
         guard var data = str.data(using: .utf8) else { return nil }
         return process(data: &data)?.h.map{Int($0)}
     }
-    // FIXME: Function signatures
 }
 

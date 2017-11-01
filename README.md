@@ -7,7 +7,7 @@ An SHA-1 hash implementation in Swift
 1. Include SHA1.swift in your project
 2. Call a public method:
   ```swift
-  let hash:String = SHA1.hexString(from: filename)
+  let hash:String = SHA1.hexString(fromFile: filename)
   ```
   returns `Optional("84983E44 1C3BD26E BAAE4AA1 F95129E5 E54670F1")`
   

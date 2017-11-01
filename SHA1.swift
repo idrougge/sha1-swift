@@ -1,6 +1,6 @@
 // SHA-1 implementation in Swift 4
 // $AUTHOR: Iggy Drougge
-// $VER: 2.2
+// $VER: 2.3
 
 import Foundation
 
@@ -131,7 +131,7 @@ public struct SHA1 {
      **************************************************/
     private static func hexString(_ context:SHA1.context?) -> String? {
         guard let c=context else {return nil}
-        return String(format: "%8X %8X %8X %8X %8X", c.h[0], c.h[1], c.h[2], c.h[3], c.h[4])
+        return String(format: "%08X %08X %08X %08X %08X", c.h[0], c.h[1], c.h[2], c.h[3], c.h[4])
     }
     
     /**************************************************
@@ -180,4 +180,3 @@ public struct SHA1 {
         return process(data: &data)?.h.map{Int($0)}
     }
 }
-

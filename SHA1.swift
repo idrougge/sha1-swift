@@ -1,12 +1,12 @@
 // SHA-1 implementation in Swift 4
 // $AUTHOR: Iggy Drougge
-// $VER: 2.3
+// $VER: 2.3.1
 
 import Foundation
 
 /// Left rotation (or cyclic shift) operator
 infix operator <<< : BitwiseShiftPrecedence
-private func <<< (lhs:uint32, rhs:uint32) -> uint32 {
+private func <<< (lhs:UInt32, rhs:UInt32) -> UInt32 {
     return lhs << rhs | lhs >> (32-rhs)
 }
 
@@ -14,11 +14,11 @@ public struct SHA1 {
     // One chunk consists of 80 big-endian longwords (32 bits, unsigned)
     private static let CHUNKSIZE=80
     // SHA-1 magic words
-    private static let h0:uint32 = 0x67452301
-    private static let h1:uint32 = 0xEFCDAB89
-    private static let h2:uint32 = 0x98BADCFE
-    private static let h3:uint32 = 0x10325476
-    private static let h4:uint32 = 0xC3D2E1F0
+    private static let h0:UInt32 = 0x67452301
+    private static let h1:UInt32 = 0xEFCDAB89
+    private static let h2:UInt32 = 0x98BADCFE
+    private static let h3:UInt32 = 0x10325476
+    private static let h4:UInt32 = 0xC3D2E1F0
     
     /**************************************************
      * SHA1.context                                   *
@@ -27,10 +27,10 @@ public struct SHA1 {
      **************************************************/
     private struct context {
         // Initialise variables:
-        var h:[uint32]=[SHA1.h0,SHA1.h1,SHA1.h2,SHA1.h3,SHA1.h4]
+        var h:[UInt32]=[SHA1.h0,SHA1.h1,SHA1.h2,SHA1.h3,SHA1.h4]
         
         // Process one chunk of 80 big-endian longwords
-        mutating func process(chunk:inout ContiguousArray<uint32>) {
+        mutating func process(chunk:inout ContiguousArray<UInt32>) {
             for i in 0..<16 {
                 chunk[i] = chunk[i].bigEndian // The numbers must be big-endian
             }
@@ -40,7 +40,7 @@ public struct SHA1 {
             }
             
             // Initialise hash value for this chunk:
-            var a,b,c,d,e,f,k,temp:uint32
+            var a,b,c,d,e,f,k,temp:UInt32
             a=h[0]; b=h[1]; c=h[2]; d=h[3]; e=h[4]
             f=0x0; k=0x0
             
@@ -88,7 +88,7 @@ public struct SHA1 {
      **************************************************/
     private static func process(data: inout Data) -> SHA1.context? {
         var context=SHA1.context()
-        var w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
+        var w = ContiguousArray<UInt32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
         let ml=data.count << 3                                        // Message length in bits
         var range = Range(0..<64)                                     // A chunk is 64 bytes
         
@@ -103,22 +103,22 @@ public struct SHA1 {
         }
         
         // Handle remainder of message that is <64 bytes in length
-        w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
+        w = ContiguousArray<UInt32>(repeating: 0x00000000, count: CHUNKSIZE) // Initialise empty chunk
         range = Range(range.lowerBound..<data.count)                  // Range for remainder of message
         w.withUnsafeMutableBufferPointer{ dest in
             _=data.copyBytes(to: dest, from: range)                   // Retrieve remainder
         }
         let bytetochange=range.count % 4                              // The bit to the right of the
-        let shift = uint32(bytetochange * 8)                          // last bit of the actual message
+        let shift = UInt32(bytetochange * 8)                          // last bit of the actual message
         w[range.count/4] |= 0x80 << shift                             // should be set to 1.
         // If the remainder overflows, a new, empty chunk must be added
         if range.count+1 > 56 {
             context.process(chunk: &w)
-            w = ContiguousArray<uint32>(repeating: 0x00000000, count: CHUNKSIZE)
+            w = ContiguousArray<UInt32>(repeating: 0x00000000, count: CHUNKSIZE)
         }
         
         // The last 64 bits of the last chunk must contain the message length in big-endian format
-        w[15] = uint32(ml).bigEndian
+        w[15] = UInt32(ml).bigEndian
         context.process(chunk: &w)                                    // Process the last chunk
         
         // The context (or nil) is returned, containing the hash in the h[] array
